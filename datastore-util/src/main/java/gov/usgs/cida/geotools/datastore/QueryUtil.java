@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.Query;
 import org.geotools.filter.visitor.DefaultFilterVisitor;

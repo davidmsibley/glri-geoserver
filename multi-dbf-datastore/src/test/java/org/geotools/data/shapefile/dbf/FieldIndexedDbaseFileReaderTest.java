@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.geotools.data.shapefile.dbf;
 
 import java.io.File;
@@ -10,8 +5,9 @@ import java.io.FileInputStream;
 import java.net.URL;
 import java.nio.channels.FileChannel;
 import java.util.Map;
-import org.junit.*;
+import org.junit.After;
 import static org.junit.Assert.assertEquals;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -39,7 +35,7 @@ public class FieldIndexedDbaseFileReaderTest {
 
 	@Before
 	public void doSetup() throws Exception {
-		URL url = this.getClass().getClassLoader().getResource("sample.dbf");
+		URL url = this.getClass().getClassLoader().getResource("dbf/sample.dbf");
 		File dBaseFile = new File(url.getFile());
 		FileChannel dBaseFileChannel = (new FileInputStream(dBaseFile)).getChannel();
 		dbaseReader = new FieldIndexedDbaseFileReader(dBaseFileChannel);
@@ -55,12 +51,9 @@ public class FieldIndexedDbaseFileReaderTest {
 		
 		dbaseReader = null;
 	}
-
 	
 	@Test
-	public void testTheFieldIndexing() throws Exception {
-
-		
+	public void testFieldIndexing() throws Exception {
 		Map<Object, Integer> indexMap = dbaseReader.getFieldIndex();
 		
 		//Test the indexed ID column to point to the correct row

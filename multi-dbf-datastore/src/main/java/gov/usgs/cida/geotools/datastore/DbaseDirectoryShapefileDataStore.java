@@ -7,9 +7,18 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.channels.FileChannel;
-import java.util.*;
-import org.geotools.data.*;
-import org.geotools.data.shapefile.ShapefileAttributeReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import org.geotools.data.DataUtilities;
+import org.geotools.data.DefaultFeatureReader;
+import org.geotools.data.FeatureReader;
+import org.geotools.data.Query;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.shapefile.dbf.DbaseFileHeader;
 import org.geotools.data.shapefile.dbf.FieldIndexedDbaseFileReader;
@@ -39,7 +48,11 @@ public class DbaseDirectoryShapefileDataStore extends ShapefileDataStore {
     private Map<File, Map<Object, Integer>> fileFieldIndexMap = new HashMap<File, Map<Object, Integer>>();
     
     public DbaseDirectoryShapefileDataStore(URI namespaceURI, URL dbaseDirectoryURL, URL shapefileURL, String shapefileJoinAttributeName) throws MalformedURLException, IOException {
-        super(shapefileURL, namespaceURI, true, true, ShapefileDataStore.DEFAULT_STRING_CHARSET);
+        super(shapefileURL);
+		this.setNamespaceURI(namespaceURI.toString());
+		this.setMemoryMapped(true);
+		this.setCharset(ShapefileDataStore.DEFAULT_STRING_CHARSET);
+		this.setBufferCachingEnabled(true);
         
         this.joinedDBaseDirectoryURL = dbaseDirectoryURL;
         
@@ -72,98 +85,98 @@ public class DbaseDirectoryShapefileDataStore extends ShapefileDataStore {
         }
         return dbaseReaderList;
     }
-    
-    @Override
-    protected List<AttributeDescriptor> readAttributes() throws IOException {
-        List<AttributeDescriptor> shapefileAttributeDescriptors = super.readAttributes();
-        
-        shapefileAttributeNames = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
-        for (AttributeDescriptor attributeDescriptor : shapefileAttributeDescriptors) {
-            shapefileAttributeNames.add(attributeDescriptor.getLocalName());
-        }
-        
-        ArrayList<AttributeDescriptor> dbaseFileAttributeDescriptors = new ArrayList<AttributeDescriptor>();
-        joinedDBaseAttributeNames = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
-        
-        List<FieldIndexedDbaseFileReader> dbaseReaderList = createDbaseReaderList();
-        int dbaseReaderCount = dbaseReaderList.size();
-        for (int dbaseReaderIndex = 0; dbaseReaderIndex < dbaseReaderCount; ++dbaseReaderIndex) {
-            
-            FieldIndexedDbaseFileReader dbaseReader = dbaseReaderList.get(dbaseReaderIndex);
-            try {
-
-                DbaseFileHeader dbaseFileHeader = dbaseReader.getHeader();
-                int dbaseFieldCount = dbaseFileHeader.getNumFields();
-
-                AttributeTypeBuilder atBuilder = new AttributeTypeBuilder();
-
-                for (int dbaseFieldIndex = 0; dbaseFieldIndex < dbaseFieldCount; ++dbaseFieldIndex) {
-                    String dbaseFieldName = dbaseFileHeader.getFieldName(dbaseFieldIndex);
-                    if (!shapefileAttributeNames.contains(dbaseFieldName) && !joinedDBaseAttributeNames.contains(dbaseFieldName)) {
-                        dbaseFileAttributeDescriptors.add(atBuilder.
-                            userData(KEY_READER_INDEX, dbaseReaderIndex).
-                            userData(KEY_FIELD_INDEX, dbaseFieldIndex).
-                            binding(dbaseFileHeader.getFieldClass(dbaseFieldIndex)).
-                            buildDescriptor(dbaseFileHeader.getFieldName(dbaseFieldIndex)));
-                    }
-                }
-
-                for (AttributeDescriptor attributeDescriptor : dbaseFileAttributeDescriptors) {
-                    joinedDBaseAttributeNames.add(attributeDescriptor.getLocalName());
-                }
-
-            } finally {
-                if (dbaseReader != null) {
-                    try { dbaseReader.close(); } catch (IOException ignore) {}
-                }
-            }
-        }
-        
-        List<AttributeDescriptor> attributeDescriptors = new ArrayList<AttributeDescriptor>(
-                shapefileAttributeDescriptors.size() +
-                dbaseFileAttributeDescriptors.size());
-        attributeDescriptors.addAll(shapefileAttributeDescriptors);
-        attributeDescriptors.addAll(dbaseFileAttributeDescriptors);
-        
-        return attributeDescriptors;
-    }
-    
-    @Override
-    protected FeatureReader<SimpleFeatureType, SimpleFeature> getFeatureReader(String typeName, Query query) throws IOException {
-        if (requiresShapefileAttributes(query)) {
-            if (requiresJoinedDbaseAttributes(query)) {
-                // make sure join attribute is in property list if we need to join!
-                String[] properties = query.getPropertyNames();
-                int joinIndex = Arrays.asList(properties).indexOf(shapefileJoinAttributeName);
-                if (joinIndex == -1) {
-                    int tailIndex = properties.length;
-                    properties = Arrays.copyOf(properties, tailIndex + 1);
-                    properties[tailIndex] = shapefileJoinAttributeName;
-                    query.setPropertyNames(properties);
-                }
-            }
-            return super.getFeatureReader(typeName, query);
-        } else {
-            try {
-                List<String> propertyNames = Arrays.asList(query.getPropertyNames());
-                SimpleFeatureType subTypeSchema = DataUtilities.createSubType(getSchema(), propertyNames.toArray(new String[0]));
-                return new DefaultFeatureReader(new DbaseListAttributeReader(createDbaseReaderList(), subTypeSchema), subTypeSchema);
-            } catch (SchemaException ex) {
-                // hack
-                throw new IOException(ex);
-            }
-        }
-    }
-
-    @Override
-    protected ShapefileAttributeReader getAttributesReader(boolean readDBF, Query query, String[] properties) throws IOException {
-        if (requiresJoinedDbaseAttributes(query)) {
-            int shapefileJoinAttributeIndex = Arrays.asList(properties).indexOf(shapefileJoinAttributeName);
-            return new DbaseListShapefileAttributeJoiningReader(super.getAttributesReader(true, query, properties), createDbaseReaderList(), shapefileJoinAttributeIndex);
-        } else {
-            return super.getAttributesReader(readDBF, query, properties);
-        }
-    }
+//    
+//    @Override
+//    protected List<AttributeDescriptor> readAttributes() throws IOException {
+//        List<AttributeDescriptor> shapefileAttributeDescriptors = super.getSchema().getAttributeDescriptors();
+//        
+//        shapefileAttributeNames = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+//        for (AttributeDescriptor attributeDescriptor : shapefileAttributeDescriptors) {
+//            shapefileAttributeNames.add(attributeDescriptor.getLocalName());
+//        }
+//        
+//        ArrayList<AttributeDescriptor> dbaseFileAttributeDescriptors = new ArrayList<AttributeDescriptor>();
+//        joinedDBaseAttributeNames = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+//        
+//        List<FieldIndexedDbaseFileReader> dbaseReaderList = createDbaseReaderList();
+//        int dbaseReaderCount = dbaseReaderList.size();
+//        for (int dbaseReaderIndex = 0; dbaseReaderIndex < dbaseReaderCount; ++dbaseReaderIndex) {
+//            
+//            FieldIndexedDbaseFileReader dbaseReader = dbaseReaderList.get(dbaseReaderIndex);
+//            try {
+//
+//                DbaseFileHeader dbaseFileHeader = dbaseReader.getHeader();
+//                int dbaseFieldCount = dbaseFileHeader.getNumFields();
+//
+//                AttributeTypeBuilder atBuilder = new AttributeTypeBuilder();
+//
+//                for (int dbaseFieldIndex = 0; dbaseFieldIndex < dbaseFieldCount; ++dbaseFieldIndex) {
+//                    String dbaseFieldName = dbaseFileHeader.getFieldName(dbaseFieldIndex);
+//                    if (!shapefileAttributeNames.contains(dbaseFieldName) && !joinedDBaseAttributeNames.contains(dbaseFieldName)) {
+//                        dbaseFileAttributeDescriptors.add(atBuilder.
+//                            userData(KEY_READER_INDEX, dbaseReaderIndex).
+//                            userData(KEY_FIELD_INDEX, dbaseFieldIndex).
+//                            binding(dbaseFileHeader.getFieldClass(dbaseFieldIndex)).
+//                            buildDescriptor(dbaseFileHeader.getFieldName(dbaseFieldIndex)));
+//                    }
+//                }
+//
+//                for (AttributeDescriptor attributeDescriptor : dbaseFileAttributeDescriptors) {
+//                    joinedDBaseAttributeNames.add(attributeDescriptor.getLocalName());
+//                }
+//
+//            } finally {
+//                if (dbaseReader != null) {
+//                    try { dbaseReader.close(); } catch (IOException ignore) {}
+//                }
+//            }
+//        }
+//        
+//        List<AttributeDescriptor> attributeDescriptors = new ArrayList<AttributeDescriptor>(
+//                shapefileAttributeDescriptors.size() +
+//                dbaseFileAttributeDescriptors.size());
+//        attributeDescriptors.addAll(shapefileAttributeDescriptors);
+//        attributeDescriptors.addAll(dbaseFileAttributeDescriptors);
+//        
+//        return attributeDescriptors;
+//    }
+//    
+//    @Override
+//    protected FeatureReader<SimpleFeatureType, SimpleFeature> getFeatureReader(String typeName, Query query) throws IOException {
+//        if (requiresShapefileAttributes(query)) {
+//            if (requiresJoinedDbaseAttributes(query)) {
+//                // make sure join attribute is in property list if we need to join!
+//                String[] properties = query.getPropertyNames();
+//                int joinIndex = Arrays.asList(properties).indexOf(shapefileJoinAttributeName);
+//                if (joinIndex == -1) {
+//                    int tailIndex = properties.length;
+//                    properties = Arrays.copyOf(properties, tailIndex + 1);
+//                    properties[tailIndex] = shapefileJoinAttributeName;
+//                    query.setPropertyNames(properties);
+//                }
+//            }
+//            return super.getFeatureReader(typeName, query);
+//        } else {
+//            try {
+//                List<String> propertyNames = Arrays.asList(query.getPropertyNames());
+//                SimpleFeatureType subTypeSchema = DataUtilities.createSubType(getSchema(), propertyNames.toArray(new String[0]));
+//                return new DefaultFeatureReader(new DbaseListAttributeReader(createDbaseReaderList(), subTypeSchema), subTypeSchema);
+//            } catch (SchemaException ex) {
+//                // hack
+//                throw new IOException(ex);
+//            }
+//        }
+//    }
+//
+//    @Override
+//    protected ShapefileAttributeReader getAttributesReader(boolean readDBF, Query query, String[] properties) throws IOException {
+//        if (requiresJoinedDbaseAttributes(query)) {
+//            int shapefileJoinAttributeIndex = Arrays.asList(properties).indexOf(shapefileJoinAttributeName);
+//            return new DbaseListShapefileAttributeJoiningReader(super.getAttributesReader(true, query, properties), createDbaseReaderList(), shapefileJoinAttributeIndex);
+//        } else {
+//            return super.getAttributesReader(readDBF, query, properties);
+//        }
+//    }
     
     private boolean requiresShapefileAttributes(Query query) {
         return QueryUtil.requiresAttributes(query, shapefileAttributeNames);
@@ -172,20 +185,20 @@ public class DbaseDirectoryShapefileDataStore extends ShapefileDataStore {
     private boolean requiresJoinedDbaseAttributes(Query query) {
         return QueryUtil.requiresAttributes(query, joinedDBaseAttributeNames);
     }
-    
-    @Override
-    protected String createFeatureTypeName() {
-        String path = joinedDBaseDirectoryURL.getPath();
-        File file = new File(path);
-        String name = file.getName();
-        name = name.replace(',', '_'); // Are there other characters?
-        return name;
-    }
-
-    @Override
-    public ReferencedEnvelope getBounds(Query query) throws IOException {
-        return super.getBounds(query);
-    }
+//    
+//    @Override
+//    protected String createFeatureTypeName() {
+//        String path = joinedDBaseDirectoryURL.getPath();
+//        File file = new File(path);
+//        String name = file.getName();
+//        name = name.replace(',', '_'); // Are there other characters?
+//        return name;
+//    }
+//
+//    @Override
+//    public ReferencedEnvelope getBounds(Query query) throws IOException {
+//        return super.getBounds(query);
+//    }
 
     @Override
     public void dispose() {

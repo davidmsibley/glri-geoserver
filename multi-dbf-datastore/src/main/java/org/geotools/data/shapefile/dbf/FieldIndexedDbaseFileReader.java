@@ -28,7 +28,7 @@ public class FieldIndexedDbaseFileReader extends DbaseFileReader {
 	 * Index of the join column values to the unique row they occur on.
 	 * The rows are ONE based.
 	 */
-	Map<Object, Integer> indexMap = new HashMap<Object, Integer>();
+	Map<Object, Integer> indexMap = new HashMap<>();
     
     public FieldIndexedDbaseFileReader(FileChannel fileChannel) throws IOException {
         super(fileChannel, true, ShapefileDataStore.DEFAULT_STRING_CHARSET);
@@ -167,10 +167,6 @@ public class FieldIndexedDbaseFileReader extends DbaseFileReader {
         if (index == null || index.isEmpty()) {
             throw new IllegalArgumentException("index is null or empty");
         }
-//        if (index.size() != header.getNumRecords()) {
-//            throw new IllegalArgumentException("index size greater than record count");
-//        }
-        // TODO:  don't want to be this lenient...  see notes in buildFileIndes(int)
         if (index.size() > header.getNumRecords()) {
             throw new IllegalArgumentException("index size greater than record count");
         } else if (index.size() < header.getNumRecords()) {
