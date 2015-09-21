@@ -49,6 +49,7 @@ public class DbaseShapefileDataStore extends ShapefileDataStore {
 	public DbaseShapefileDataStore(URI namespaceURI, URL dbaseFileURL, URL shapefileURL, String shapefileJoinAttributeName) throws MalformedURLException, IOException {
 
 		super(shapefileURL);
+        this.shpManager = new DbaseShapefileSetManager(shpFiles, this);
 		this.setNamespaceURI(namespaceURI.toString());
 		this.setMemoryMapped(true);
 		this.setCharset(ShapefileDataStore.DEFAULT_STRING_CHARSET);
