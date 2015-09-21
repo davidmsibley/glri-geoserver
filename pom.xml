@@ -7,7 +7,7 @@
     <packaging>pom</packaging>
     <version>1.1.0.1-SNAPSHOT</version>
 
-    <name>GLRI GeoServer Parent</name>
+    <name>GLRI GeoServer Parent Old</name>
 
     <modules>
         <module>datastore-util</module>
