@@ -11,9 +11,9 @@
 
     <modules>
         <module>datastore-util</module>
+        <module>multi-dbf-datastore</module>
         <module>prms-datastore</module>
         <module>netcdf-dsg-datastore</module>
-        <module>multi-dbf-datastore</module>
         <module>wps</module>
         <module>geoserver</module>
         <module>demo1</module>

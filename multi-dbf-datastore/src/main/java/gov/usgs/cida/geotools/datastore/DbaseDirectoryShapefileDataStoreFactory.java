@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.Map;
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFactorySpi;
+import org.geotools.data.shapefile.DbaseDirectoryShapefileDataStore;
 import org.geotools.util.KVP;
 
 /**

@@ -10,23 +10,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.io.FileUtils;
-import org.geotools.data.DataStore;
 import org.geotools.data.DefaultTransaction;
 import org.geotools.data.FeatureReader;
 import org.geotools.data.Query;
+import org.geotools.data.shapefile.DbaseShapefileDataStore;
 import static org.hamcrest.MatcherAssert.assertThat;
-import org.hamcrest.Matchers;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
 import org.opengis.filter.Filter;
 
 /**
@@ -39,6 +36,7 @@ public class DbaseShapefileDataStoreTest {
 	}
 
 	DbaseShapefileDataStore ds;
+	DbaseShapefileDataStore sparrowDs;
 	File tempDir = null;
 
 	@Before
@@ -58,20 +56,35 @@ public class DbaseShapefileDataStoreTest {
 		params.put("shapefile", new URL("file://" + new File(tempDir, String.format("%sshapefiles%sstates_basic%sstates.shp", File.separatorChar, File.separatorChar, File.separatorChar)).getPath()));
 		params.put("dbase_field", "STATE_ABBR");
 		ds = (DbaseShapefileDataStore) factory.createDataStore(params);
+		
+		Map<String, Serializable> sparams = new HashMap<>();
+		sparams.put("namespace", new URI("http://www.usgs.gov/sparrow/"));
+		sparams.put("dbase_file", new URL("file://" + new File(tempDir, String.format("%sshapefiles%snational%s30N33234608.dbf", File.separatorChar, File.separatorChar, File.separatorChar)).getPath()));
+		sparams.put("shapefile", new URL("file://" + new File(tempDir, String.format("%sshapefiles%snational%scoverage.shp", File.separatorChar, File.separatorChar, File.separatorChar)).getPath()));
+		sparams.put("dbase_field", "IDENTIFIER");
+		sparrowDs = (DbaseShapefileDataStore) factory.createDataStore(sparams);
 	}
 
 	@Test
 	public void testGetAttributes() throws IOException {
-		List<AttributeDescriptor> result = ds.readAttributes();
+		List<AttributeDescriptor> result = ds.getSchema().getAttributeDescriptors();
 		assertThat("AttributeDescriptor was null", result, is(notNullValue()));
 		assertThat("AttributeDescriptor was empty", result.size(), is(greaterThan(0)));
-		assertThat("AttributeDescriptor was empty", result.size(), is(14));
+		assertThat("AttributeDescriptor was incorrect size", result.size(), is(14));
+	}
+
+	@Test
+	public void testSparrowGetAttributes() throws IOException {
+		List<AttributeDescriptor> result = sparrowDs.getSchema().getAttributeDescriptors();
+		assertThat("AttributeDescriptor was null", result, is(notNullValue()));
+		assertThat("AttributeDescriptor was empty", result.size(), is(greaterThan(0)));
+		assertThat("AttributeDescriptor was incorrect size", result.size(), is(4));
 	}
 
 	@Test
 	public void testGetFeatureReader() throws Exception {
 		FeatureReader<SimpleFeatureType, SimpleFeature> result = null;
-		List<AttributeDescriptor> attributes = ds.readAttributes();
+		List<AttributeDescriptor> attributes = ds.getSchema().getAttributeDescriptors();
 		String[] properties = attributes.stream()
 				.map(d -> {
 					return d.getLocalName();
@@ -85,16 +98,39 @@ public class DbaseShapefileDataStoreTest {
 		} finally {
 			if (result != null) {
 				result.close();
-
 			}
 		}
-
 	}
+
+	@Test
+	public void testSparrowGetFeatureReader() throws Exception {
+		FeatureReader<SimpleFeatureType, SimpleFeature> result = null;
+		List<AttributeDescriptor> attributes = sparrowDs.getSchema().getAttributeDescriptors();
+		String[] properties = attributes.stream()
+				.map(d -> {
+					return d.getLocalName();
+				})
+				.toArray(size -> new String[size]);
+		String typeName = sparrowDs.getSchema().getTypeName();
+		Query query = new Query(typeName, Filter.INCLUDE, properties);
+		try {
+			result = sparrowDs.getFeatureReader(query, new DefaultTransaction());
+			assertThat("Feature reader was null value", result, is(notNullValue()));
+		} finally {
+			if (result != null) {
+				result.close();
+			}
+		}
+	}
+	
 
 	@After
 	public void doTeardown() throws Exception {
 		if (ds != null) {
 			ds.dispose();
+		}
+		if (sparrowDs != null) {
+			sparrowDs.dispose();
 		}
 		try {
 			FileUtils.forceDelete(tempDir);
