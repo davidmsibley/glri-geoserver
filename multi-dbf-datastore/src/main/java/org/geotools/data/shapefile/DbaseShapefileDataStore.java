@@ -22,7 +22,6 @@ import org.geotools.data.FeatureReader;
 import org.geotools.data.Query;
 import org.geotools.data.Transaction;
 import org.geotools.data.shapefile.DbaseShapefileFeatureSource;
-import org.geotools.data.shapefile.DbaseShapefileFeatureStore;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.shapefile.dbf.DbaseFileHeader;
 import org.geotools.data.shapefile.dbf.FieldIndexedDbaseFileReader;
@@ -46,11 +45,7 @@ public class DbaseShapefileDataStore extends ShapefileDataStore {
 
 	private final URL dbaseFileURL;
 	private final String shapefileJoinAttributeName;
-//
-//	private Set<String> shapefileAttributeNames;
-//	private Set<String> joinedDBaseAttributeNames;
-//	private Map<Object, Integer> fieldIndexMap;
-
+	
 	public DbaseShapefileDataStore(URI namespaceURI, URL dbaseFileURL, URL shapefileURL, String shapefileJoinAttributeName) throws MalformedURLException, IOException {
 
 		super(shapefileURL);
@@ -62,40 +57,33 @@ public class DbaseShapefileDataStore extends ShapefileDataStore {
 		this.dbaseFileURL = dbaseFileURL;
 
 		this.shapefileJoinAttributeName = shapefileJoinAttributeName;
-
-		// NOTE: if this method is removed from constructor it should be synchronized...
-//		createDbaseReader();
 	}
 	
 	@Override
 	public ContentFeatureSource getFeatureSource() throws IOException {
 		ContentEntry entry = ensureEntry(getTypeName());
-		if (shpFiles.isWritable()) {
-			return new DbaseShapefileFeatureStore(entry, shpFiles);
-		} else {
-			return new DbaseShapefileFeatureSource(entry, shpFiles);
-		}
+//		if (shpFiles.isWritable()) {
+//			return new DbaseShapefileFeatureStore(entry, shpFiles);
+//		} else {
+			return new DbaseShapefileFeatureSource(createDbaseReader(), entry, shpFiles);
+//		}
 	}
-	
-	
 
-    // NOTE:  not synchronized because this is called in constructor,
+		    // NOTE:  not synchronized because this is called in constructor,
 	// synchronization of initialization of fileIndexMap is the concern...
-//	private FieldIndexedDbaseFileReader createDbaseReader() throws IOException {
-//		File dBaseFile = new File(dbaseFileURL.getFile());
-//		FileChannel dBaseFileChannel = (new FileInputStream(dBaseFile)).getChannel();
-//		FieldIndexedDbaseFileReader dbaseReader = new FieldIndexedDbaseFileReader(dBaseFileChannel);
+	private FieldIndexedDbaseFileReader createDbaseReader() throws IOException {
+		File dBaseFile = new File(dbaseFileURL.getFile());
+		FileChannel dBaseFileChannel = (new FileInputStream(dBaseFile)).getChannel();
+		FieldIndexedDbaseFileReader dbaseReader = new FieldIndexedDbaseFileReader(dBaseFileChannel);
 //		if (fieldIndexMap == null) {
 //			dbaseReader.buildFieldIndex(shapefileJoinAttributeName);
 //			fieldIndexMap = Collections.unmodifiableMap(dbaseReader.getFieldIndex());
 //		} else {
 //			dbaseReader.setFieldIndex(fieldIndexMap);
 //		}
-//		return dbaseReader;
-//	}
-
-
-
+		return dbaseReader;
+	}
+	
 	@Override
 	public FeatureReader<SimpleFeatureType, SimpleFeature> getFeatureReader(final Query query, final Transaction tx) throws IOException {
 		Query cleanedQuery = new Query(query);
@@ -125,7 +113,7 @@ public class DbaseShapefileDataStore extends ShapefileDataStore {
 //		}
 		return super.getFeatureReader(cleanedQuery, tx);
 	}
-//
+
 //    @Override
 //    protected ShapefileAttributeReader getAttributesReader(boolean readDBF, Query query, String[] properties) throws IOException {
 //        if (requiresJoinedDbaseAttributes(query)) {
